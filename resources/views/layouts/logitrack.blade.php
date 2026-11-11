@@ -27,7 +27,7 @@
             background-color: #f4f6f9;
             color: #1e293b;
         }
-        /* Topographic pattern for the mini GPS card */
+        /* Patrón topográfico para la tarjeta de vista previa GPS en el Dashboard */
         .topo-pattern {
             background-color: #e2e8f0;
             background-image: 
@@ -37,21 +37,7 @@
                 radial-gradient(circle at 80% 70%, transparent 40%, rgba(148, 163, 184, 0.18) 41%, rgba(148, 163, 184, 0.18) 42%, transparent 43%),
                 radial-gradient(circle at 50% 50%, transparent 60%, rgba(148, 163, 184, 0.15) 61%, rgba(148, 163, 184, 0.15) 62%, transparent 63%);
         }
-        /* Custom pulse animation for GPS pins and destination signals */
-        @keyframes pulse-ring {
-            0% { transform: scale(0.8); opacity: 0.8; }
-            80%, 100% { transform: scale(2.2); opacity: 0; }
-        }
-        .gps-pulse::before {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border-radius: 9999px;
-            background-color: currentColor;
-            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-            z-index: 0;
-        }
-        /* Leaflet custom popup styling */
+        /* Estilos personalizados para los popups de Leaflet */
         .leaflet-popup-content-wrapper {
             border-radius: 12px !important;
             box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.18) !important;
@@ -66,21 +52,20 @@
 </head>
 <body class="min-h-screen flex bg-[#f4f6f9] antialiased selection:bg-blue-600 selection:text-white">
 
-    <!-- SIDEBAR -->
+    {{-- =========================================================================
+         SIDEBAR PRINCIPAL DE NAVEGACIÓN (LogiTrack.)
+         Mantiene la identidad visual oscura (#111827) y resalta el módulo activo en azul (#2563eb).
+         Incluye los 5 módulos operativos + el apartado de Suscripción SaaS.
+       ========================================================================= --}}
     <aside class="w-64 bg-[#111827] text-slate-300 flex flex-col shrink-0 min-h-screen select-none border-r border-slate-800/80">
         <!-- Brand Logo -->
-        <div class="h-20 px-6 flex items-center gap-3 border-b border-slate-800/90">
-            <a href="{{ route('dashboard') }}" class="flex items-center gap-3 group">
-                <!-- Route & Location Pins Icon matching screenshot -->
+        <div class="h-20 px-6 flex items-center justify-between border-b border-slate-800/90">
+            <a href="{{ route('dashboard') }}" class="flex items-center gap-3 group" title="Ir al Resumen Operativo">
                 <div class="w-9 h-9 rounded-lg flex items-center justify-center text-[#2563eb] group-hover:scale-105 transition-transform">
                     <svg class="w-8 h-8" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Top-right pin -->
                         <circle cx="25" cy="9" r="3.5" stroke="#2563eb" stroke-width="2.5" fill="#111827"/>
-                        <!-- Bottom-left pin -->
                         <circle cx="10" cy="24" r="3.5" stroke="#2563eb" stroke-width="2.5" fill="#111827"/>
-                        <!-- Connecting S-curve route -->
                         <path d="M13.5 24H21C24.5 24 26.5 22 26.5 19.5C26.5 17 24.5 15.5 21 15.5H15C11.5 15.5 9.5 13.5 9.5 11C9.5 8.5 11.5 7 15 7H21" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round"/>
-                        <!-- Bottom base line -->
                         <path d="M6 30H28" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round"/>
                     </svg>
                 </div>
@@ -90,8 +75,12 @@
             </a>
         </div>
 
-        <!-- Navigation Links -->
-        <nav class="flex-1 px-4 py-6 space-y-2">
+        <!-- Enlaces de Navegación Operativa -->
+        <nav class="flex-1 px-4 py-6 space-y-1.5">
+            <div class="px-3 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+                Operaciones y Logística
+            </div>
+
             <!-- Dashboard -->
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3.5 px-4 py-3 rounded-lg text-[15px] font-medium transition-all duration-150 {{ ($activePage ?? '') === 'dashboard' ? 'bg-[#2563eb] text-white shadow-lg shadow-blue-600/25' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' }}">
@@ -137,18 +126,58 @@
                 </svg>
                 <span>Personal</span>
             </a>
+
+            <!-- Separador Cuenta SaaS -->
+            <div class="pt-4 pb-1.5 px-3 text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
+                Cuenta Empresarial SaaS
+            </div>
+
+            <!-- Mi Suscripción (Nuevo apartado para Carlos Martínez) -->
+            <a href="{{ route('suscripcion') }}"
+               class="flex items-center justify-between px-4 py-3 rounded-lg text-[15px] font-medium transition-all duration-150 {{ ($activePage ?? '') === 'suscripcion' ? 'bg-[#2563eb] text-white shadow-lg shadow-blue-600/25' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' }}">
+                <div class="flex items-center gap-3.5">
+                    <svg class="w-5 h-5 shrink-0 {{ ($activePage ?? '') === 'suscripcion' ? 'text-white' : 'text-slate-400' }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 10h20M6 15h4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Suscripción</span>
+                </div>
+                @if(($user['subscription_plan'] ?? 'trial') === 'pro')
+                    <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        PRO
+                    </span>
+                @elseif(($user['subscription_plan'] ?? 'trial') === 'freemium')
+                    <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md bg-slate-700 text-slate-300">
+                        FREE
+                    </span>
+                @else
+                    <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {{ $user['trial_days_remaining'] ?? 11 }}d
+                    </span>
+                @endif
+            </a>
         </nav>
 
-        <!-- Bottom Logout -->
-        <div class="p-4 border-t border-slate-800/90">
-            <button type="button"
-                    onclick="document.getElementById('logout-toast').classList.remove('hidden')"
-                    class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer">
-                <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Enlace a Landing Page y Cierre de Sesión -->
+        <div class="p-4 border-t border-slate-800/90 space-y-1.5">
+            <a href="{{ route('landing') }}"
+               class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors">
+                <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>Cerrar Sesión</span>
-            </button>
+                <span>Ver Landing Page SaaS</span>
+            </a>
+
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit"
+                        class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer">
+                    <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Cerrar Sesión</span>
+                </button>
+            </form>
         </div>
     </aside>
 
@@ -163,6 +192,14 @@
             </div>
 
             <div class="flex items-center gap-5">
+                <!-- Píldora interactiva del estado de Suscripción SaaS -->
+                <a href="{{ route('suscripcion') }}"
+                   class="hidden md:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all {{ ($user['subscription_plan'] ?? 'trial') === 'pro' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : (($user['subscription_plan'] ?? 'trial') === 'freemium' ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200' : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100') }}"
+                   title="Administrar suscripción y facturación">
+                    <span class="w-2 h-2 rounded-full {{ ($user['subscription_plan'] ?? 'trial') === 'pro' ? 'bg-emerald-500' : 'bg-blue-600 animate-pulse' }}"></span>
+                    <span>{{ $user['plan_badge'] ?? 'Prueba Gratis 14 Días' }}</span>
+                </a>
+
                 <!-- Notification Bell Dropdown -->
                 <div class="relative">
                     <button type="button"
@@ -190,39 +227,43 @@
                                 <p class="text-xs font-semibold text-blue-600">GPS Activo • Cuadrilla C</p>
                                 <p class="text-xs text-slate-600 mt-0.5">A 2.5 km de Residencial Las Mercedes (León Centro).</p>
                             </a>
+                            <a href="{{ route('suscripcion') }}" class="block px-4 py-3 hover:bg-slate-50 transition-colors">
+                                <p class="text-xs font-semibold text-slate-700">Estado de Suscripción SaaS</p>
+                                <p class="text-xs text-slate-500 mt-0.5">{{ $user['plan_badge'] ?? 'Prueba Gratis 14 días -> $60/mes' }}</p>
+                            </a>
                         </div>
                     </div>
                 </div>
 
                 <div class="h-8 w-px bg-slate-200"></div>
 
-                <!-- User Profile -->
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-[#0284c7] text-white font-bold text-sm flex items-center justify-center shadow-sm">
+                <!-- User Profile (Click lleva a administrar la suscripción de Carlos Martínez) -->
+                <a href="{{ route('suscripcion') }}" class="flex items-center gap-3 group" title="Ver perfil y suscripción de {{ $user['name'] ?? 'Carlos Martínez' }}">
+                    <div class="w-10 h-10 rounded-full bg-[#0284c7] text-white font-bold text-sm flex items-center justify-center shadow-sm group-hover:ring-2 group-hover:ring-blue-400 transition-all">
                         {{ $user['initials'] ?? 'CM' }}
                     </div>
-                    <div class=" leading-tight">
-                        <div class="text-[14px] font-bold text-slate-800">{{ $user['name'] ?? 'Carlos Martínez' }}</div>
+                    <div class="leading-tight">
+                        <div class="text-[14px] font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{{ $user['name'] ?? 'Carlos Martínez' }}</div>
                         <div class="text-[12px] text-slate-400">{{ $user['role'] ?? 'Gerente de Operaciones' }}</div>
                     </div>
-                </div>
+                </a>
             </div>
         </header>
 
         <!-- PAGE CONTENT -->
         <main class="flex-1 p-8">
+            @if(session('status') && ($activePage ?? '') !== 'inventario')
+                <div class="mb-6 px-5 py-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>{{ session('status') }}</span>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-900 font-bold cursor-pointer">✕</button>
+                </div>
+            @endif
+
             @yield('content')
         </main>
-    </div>
-
-    <!-- Demo Logout Toast -->
-    <div id="logout-toast" class="hidden fixed bottom-5 right-5 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 z-50">
-        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-ping"></span>
-        <div class="text-xs">
-            <p class="font-semibold">Modo Demostración LogiTrack</p>
-            <p class="text-slate-400">Sesión activa de {{ $user['name'] ?? 'Carlos Martínez' }} (León, Nicaragua)</p>
-        </div>
-        <button onclick="document.getElementById('logout-toast').classList.add('hidden')" class="ml-2 text-slate-400 hover:text-white text-xs font-bold cursor-pointer">✕</button>
     </div>
 
     <!-- Leaflet JS -->

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Cuadrilla;
 use App\Models\Equipo;
+use App\Models\PagoSuscripcion;
 use App\Models\Personal;
 use App\Models\RutaEnvio;
 use App\Models\User;
@@ -14,16 +15,64 @@ use Illuminate\Support\Facades\Hash;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database (logitrack_demostration).
+     * Pobla la base de datos `logitrack_demostration` con los datos iniciales del SaaS:
+     * - Usuario administrador principal: Carlos Martínez (Gerente de Operaciones) con prueba de 14 días -> $60/mes.
+     * - Historial de suscripción inicial.
+     * - Cuadrillas con coordenadas GPS reales en León, Nicaragua.
+     * - Inventario completo y movimientos de bodega.
+     * - Rutas y envíos con señales de destino.
+     * - Directorio de personal operativo (Encargados de Bodega, Choferes, Técnicos).
      */
     public function run(): void
     {
-        // Usuario Gerente Principal
-        User::updateOrCreate(
+        // 0. Crear o actualizar el usuario principal Carlos Martínez con su suscripción SaaS
+        $carlos = User::updateOrCreate(
             ['email' => 'c.martinez@logitrack.com.ni'],
             [
                 'name' => 'Carlos Martínez',
                 'password' => Hash::make('logitrack2026'),
+                'role' => 'Gerente de Operaciones',
+                'company_name' => 'Inversiones Eléctricas de León S.A.',
+                'phone' => '+505 8810-2200',
+                'subscription_plan' => 'trial', // Prueba Gratis de 14 días activa antes del cobro de $60/mes
+                'subscription_status' => 'on_trial',
+                'monthly_price' => 60.00,
+                'trial_starts_at' => now()->subDays(3),
+                'trial_ends_at' => now()->addDays(11), // Quedan 11 días de los 14 días gratis
+                'next_billing_at' => now()->addDays(11),
+                'payment_method_brand' => 'Visa Corporativa',
+                'payment_method_last4' => '4821',
+                'billing_ruc' => 'J0310000459128',
+                'auto_renew' => true,
+            ]
+        );
+
+        // Registrar eventos iniciales en el historial de facturación de Carlos Martínez
+        PagoSuscripcion::updateOrCreate(
+            ['referencia' => 'SUB-2026-001'],
+            [
+                'user_id' => $carlos->id,
+                'concepto' => 'Activación Prueba Gratis 14 Días (Plan Empresarial Pro - $60/mes al finalizar)',
+                'plan' => 'trial',
+                'monto' => 0.00,
+                'moneda' => 'USD',
+                'metodo_pago' => 'Visa Corporativa •••• 4821',
+                'estado' => 'Prueba Activa (14 Días)',
+                'fecha_emision' => now()->subDays(3)->format('d/m/Y'),
+            ]
+        );
+
+        PagoSuscripcion::updateOrCreate(
+            ['referencia' => 'SUB-2026-002'],
+            [
+                'user_id' => $carlos->id,
+                'concepto' => 'Próximo Cargo Programado — Suscripción Mensual LogiTrack Pro',
+                'plan' => 'pro',
+                'monto' => 60.00,
+                'moneda' => 'USD',
+                'metodo_pago' => 'Visa Corporativa •••• 4821',
+                'estado' => 'Programado tras Prueba',
+                'fecha_emision' => now()->addDays(11)->format('d/m/Y'),
             ]
         );
 

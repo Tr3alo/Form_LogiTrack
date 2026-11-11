@@ -4,8 +4,26 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+test('logitrack saas landing page, login and register load successfully', function () {
+    $this->get('/')
+        ->assertStatus(200)
+        ->assertSee('LogiTrack')
+        ->assertSee('14 días')
+        ->assertSee('$60');
+
+    $this->get('/login')
+        ->assertStatus(200)
+        ->assertSee('Iniciar Sesión')
+        ->assertSee('Carlos Martínez');
+
+    $this->get('/register')
+        ->assertStatus(200)
+        ->assertSee('Registrar Empresa en LogiTrack')
+        ->assertSee('Prueba Gratis de 14 Días');
+});
+
 test('logitrack dashboard loads successfully with database data', function () {
-    $response = $this->get('/');
+    $response = $this->get('/dashboard');
 
     $response->assertStatus(200)
         ->assertSee('LogiTrack')
@@ -16,7 +34,7 @@ test('logitrack dashboard loads successfully with database data', function () {
         ->assertSee('Cuadrilla C - León Centro');
 });
 
-test('logitrack inventario, rastreo gps, rutas y personal load from database', function () {
+test('logitrack inventario, rastreo gps, rutas, personal y suscripcion load from database', function () {
     $this->get('/inventario')
         ->assertStatus(200)
         ->assertSee('Inventario de Equipos y Recursos')
@@ -39,4 +57,10 @@ test('logitrack inventario, rastreo gps, rutas y personal load from database', f
         ->assertSee('Personal y Cuadrillas')
         ->assertSee('Encargado de Bodega')
         ->assertSee('Chofer');
+
+    $this->get('/suscripcion')
+        ->assertStatus(200)
+        ->assertSee('Suscripción y Facturación SaaS')
+        ->assertSee('Carlos Martínez')
+        ->assertSee('60.00');
 });
