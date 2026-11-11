@@ -110,7 +110,7 @@
                     <!--
                     <a href="{{ route('suscripcion') }}" class="text-blue-600 font-semibold hover:underline">
                         Administrar suscripción
-                    </a> -- >
+                    </a> -->
                 </div>
 
                 <button type="submit"
