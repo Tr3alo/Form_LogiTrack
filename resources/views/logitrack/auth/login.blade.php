@@ -119,15 +119,33 @@
                 </button>
             </form>
 
-            <!-- Botón de Acceso Rápido 1-Click como Carlos Martínez -->
-            <form method="POST" action="{{ route('login.submit') }}" class="mt-3">
-                @csrf
-                <input type="hidden" name="demo_login" value="1">
-                <button type="submit"
-                        class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs border border-slate-200 transition-all cursor-pointer">
-                     Acceso Rápido Demo como Carlos Martínez (Gerente de Operaciones)
-                </button>
-            </form>
+            <!-- Botones de Acceso Rápido 1-Click para Demostración (Premium vs Free) -->
+            <div class="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center">
+                    Accesos Rápidos de Demostración (Carlos Martínez)
+                </span>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <form method="POST" action="{{ route('login.submit') }}">
+                        @csrf
+                        <input type="hidden" name="demo_login" value="1">
+                        <input type="hidden" name="demo_mode" value="premium">
+                        <button type="submit"
+                                class="w-full py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition-all cursor-pointer">
+                            ⚡ Demo Cuenta Premium (\$60/m)
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('login.submit') }}">
+                        @csrf
+                        <input type="hidden" name="demo_login" value="1">
+                        <input type="hidden" name="demo_mode" value="free">
+                        <button type="submit"
+                                class="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs border border-amber-200 transition-all cursor-pointer">
+                            🔒 Demo Cuenta Free (Restringida)
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             <div class="mt-6 pt-5 border-t border-slate-100 text-center text-xs text-slate-500">
                 ¿Tu empresa aún no usa LogiTrack?

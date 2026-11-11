@@ -12,8 +12,9 @@ use Illuminate\Support\Facades\Route;
 |    con prueba gratuita de 14 días seguida de $60 USD/mes.
 | 2. Autenticación (`/login`, `/register`, `/logout`): Registro e inicio de sesión
 |    conectados a la tabla `users` en MySQL (`logitrack_demostration`).
-| 3. Panel Operativo (`/dashboard`, `/inventario`, `/rastreo-gps`, `/rutas-envios`,
-|    `/personal`, `/suscripcion`): Vistas del sistema y administración de suscripción.
+| 3. Panel Operativo:
+|    - Cuentas FREE y PREMIUM: `/dashboard`, `/inventario`, `/suscripcion`.
+|    - Exclusivo Cuentas PREMIUM ($60/mes o Prueba 14d): `/rastreo-gps`, `/rutas-envios`, `/personal`.
 */
 
 // Landing Page Comercial del SaaS
@@ -27,14 +28,17 @@ Route::get('/register', [LogiTrackController::class, 'showRegister'])->name('reg
 Route::post('/register', [LogiTrackController::class, 'register'])->name('register.submit');
 Route::post('/logout', [LogiTrackController::class, 'logout'])->name('logout');
 
-// Panel Operativo (Dashboard y Módulos Logísticos)
+// Panel Operativo (Permitidos en Cuenta Free y Premium)
 Route::get('/dashboard', [LogiTrackController::class, 'dashboard'])->name('dashboard');
 Route::get('/inventario', [LogiTrackController::class, 'inventario'])->name('inventario');
 Route::post('/inventario', [LogiTrackController::class, 'storeEquipo'])->name('inventario.store');
+Route::post('/inventario/enviar-bodega', [LogiTrackController::class, 'sendToBodega'])->name('inventario.send_bodega');
+
+// Módulos Exclusivos de Cuenta Premium (Bloqueados para Cuenta Free)
 Route::get('/rastreo-gps', [LogiTrackController::class, 'rastreo'])->name('rastreo');
 Route::get('/rutas-envios', [LogiTrackController::class, 'rutas'])->name('rutas');
 Route::get('/personal', [LogiTrackController::class, 'personal'])->name('personal');
 
-// Administración de Suscripción SaaS (Carlos Martínez - Prueba 14 días / $60 al mes)
+// Administración de Suscripción SaaS (Carlos Martínez - Prueba 14 días / $60 al mes / Cuenta Free)
 Route::get('/suscripcion', [LogiTrackController::class, 'suscripcion'])->name('suscripcion');
 Route::post('/suscripcion', [LogiTrackController::class, 'updateSuscripcion'])->name('suscripcion.update');

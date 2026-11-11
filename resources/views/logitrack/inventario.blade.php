@@ -1,10 +1,25 @@
 @extends('layouts.logitrack')
 
 @section('content')
+    @php
+        $isFreeAccount = (bool) ($user['is_free'] ?? false);
+    @endphp
+
     @if(session('status'))
-        <div class="mb-6 px-5 py-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between">
+        <div class="mb-6 px-5 py-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-xs">
             <span>✓ {{ session('status') }}</span>
             <button type="button" onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-900 font-bold cursor-pointer">✕</button>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+            <p class="font-bold mb-1">Por favor corrige los siguientes campos antes de registrar el producto:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -26,8 +41,10 @@
         <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex items-center justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">En Cuadrillas (A, B, C, D)</p>
-                <p class="text-2xl font-extrabold text-blue-600 mt-1">8 Lotes Activos</p>
-                <p class="text-xs text-slate-500 mt-1">Desplegados en proyectos</p>
+                <p class="text-2xl font-extrabold text-blue-600 mt-1">
+                    {{ collect($inventario)->where('cuadrilla', '!=', 'Bodega Central')->count() }} Lotes Activos
+                </p>
+                <p class="text-xs text-slate-500 mt-1">Desplegados en encargos</p>
             </div>
             <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,8 +56,10 @@
         <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-xs flex items-center justify-between">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Stock en Bodega Central</p>
-                <p class="text-2xl font-extrabold text-emerald-600 mt-1">2 Lotes (9 Kits)</p>
-                <p class="text-xs text-slate-500 mt-1">Disponibles para despacho</p>
+                <p class="text-2xl font-extrabold text-emerald-600 mt-1">
+                    {{ collect($inventario)->where('cuadrilla', 'Bodega Central')->count() }} Lotes en Almacén
+                </p>
+                <p class="text-xs text-slate-500 mt-1">Disponibles en Bodega Central</p>
             </div>
             <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -63,35 +82,48 @@
         </div>
     </div>
 
-    <!-- FILTER CONTROLS CARD (CUADRILLAS + ENCARGOS + SEARCH) -->
+    <!-- FILTER CONTROLS CARD (CUADRILLAS + ENCARGOS + SEARCH + BOTÓN DIRECTO A BODEGA) -->
     <div class="bg-white rounded-2xl p-6 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.08)] border border-slate-100 mb-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-5 border-b border-slate-100">
             <div>
-                <h2 class="text-base font-bold text-slate-800">Filtrar por Cuadrilla / Unidad Asignada</h2>
-                <p class="text-xs text-slate-400 mt-0.5">Selecciona una cuadrilla o encargo específico para auditar sus herramientas asignadas</p>
+                <h2 class="text-base font-bold text-slate-800">Filtrar y Registrar Productos en Inventario</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Puedes enviar productos directamente a la Bodega Central o asignarlos a una cuadrilla/encargo</p>
             </div>
 
-            <button type="button"
-                    onclick="document.getElementById('modal-nuevo-equipo').classList.remove('hidden')"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer self-start lg:self-auto">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span>Asignar / Registrar Equipo</span>
-            </button>
+            <div class="flex flex-wrap items-center gap-2.5">
+                <!-- BOTÓN SENCILLO PARA MANDAR PRODUCTOS DIRECTAMENTE A BODEGA CENTRAL -->
+                <button type="button"
+                        onclick="openInventoryModal('bodega')"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                        <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>📦 Enviar Producto Directo a Bodega Central</span>
+                </button>
+
+                <!-- Botón para asignar a Cuadrilla / Encargo -->
+                <button type="button"
+                        onclick="openInventoryModal('encargo')"
+                        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Asignar a Cuadrilla / Encargo</span>
+                </button>
+            </div>
         </div>
 
         <!-- Cuadrilla Pills -->
         <div class="flex flex-wrap items-center gap-2 my-4" id="cuadrilla-pills">
             @php
                 $cuadrillasList = [
-                    'todas' => 'Todas las Cuadrillas',
+                    'todas' => 'Todas las Unidades',
+                    'Bodega Central' => '🏠 En Bodega Central',
                     'Cuadrilla A' => 'Cuadrilla A',
                     'Cuadrilla B' => 'Cuadrilla B',
                     'Cuadrilla C' => 'Cuadrilla C',
                     'Cuadrilla D' => 'Cuadrilla D',
                     'Encargo Técnico' => 'Encargos Técnicos',
-                    'Bodega Central' => 'En Bodega Central',
                 ];
             @endphp
             @foreach($cuadrillasList as $key => $label)
@@ -116,24 +148,24 @@
                     <input type="text"
                            id="filter-search"
                            oninput="applyInventoryFilters()"
-                           placeholder="Ej. Fluke, Taladro DeWalt, THHN, Roberto Gómez..."
+                           placeholder="Ej. Fluke, Taladro DeWalt, THHN, Bodega..."
                            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white transition-all">
                 </div>
             </div>
 
             <!-- Filter by Encargo / Proyecto -->
             <div class="md:col-span-4">
-                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Filtrar por Encargo / Proyecto</label>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Filtrar por Encargo o Bodega</label>
                 <select id="filter-encargo"
                         onchange="applyInventoryFilters()"
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition-all">
-                    <option value="todos">Todos los Encargos y Proyectos</option>
+                    <option value="todos">Todos los Encargos y Bodega Central</option>
+                    <option value="Stock Disponible en Bodega">📦 Stock Disponible en Bodega Central</option>
                     <option value="Encargo #104 - Proyecto Centro Comercial">Encargo #104 - Proyecto Centro Comercial (Cuadrilla A)</option>
                     <option value="Encargo #105 - Red Eléctrica Sutiaba">Encargo #105 - Red Eléctrica Sutiaba (Cuadrilla B)</option>
                     <option value="Encargo #108 - Instalación Residencial Las Mercedes">Encargo #108 - Residencial Las Mercedes (Cuadrilla C)</option>
                     <option value="Encargo #112 - Mantenimiento Subestación Sur">Encargo #112 - Subestación Sur, León (Téc. Roberto)</option>
                     <option value="Encargo #115 - Alumbrado Reparto Rubén Darío">Encargo #115 - Reparto Rubén Darío (Cuadrilla D)</option>
-                    <option value="Stock Disponible en Bodega">Stock Disponible en Bodega Central</option>
                 </select>
             </div>
 
@@ -144,11 +176,11 @@
                         onchange="applyInventoryFilters()"
                         class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition-all">
                     <option value="todos">Todos los Estados</option>
+                    <option value="En Bodega">En Bodega Central</option>
                     <option value="Entregado">Entregado</option>
                     <option value="Operativo">Operativo en Campo</option>
                     <option value="En Tránsito">En Tránsito</option>
                     <option value="Reporte Fallo">Reporte Fallo</option>
-                    <option value="En Bodega">En Bodega Central</option>
                 </select>
             </div>
         </div>
@@ -177,10 +209,10 @@
                         <th class="py-3.5 px-6">Código / Serie</th>
                         <th class="py-3.5 px-5">Herramienta / Equipo</th>
                         <th class="py-3.5 px-4">Cant.</th>
-                        <th class="py-3.5 px-5">Cuadrilla / Asignado a</th>
-                        <th class="py-3.5 px-5">Encargo y Ubicación (León)</th>
+                        <th class="py-3.5 px-5">Ubicación / Asignado a</th>
+                        <th class="py-3.5 px-5">Encargo o Bodega (León)</th>
                         <th class="py-3.5 px-5">Estado</th>
-                        <th class="py-3.5 px-6 text-right">Acción</th>
+                        <th class="py-3.5 px-6 text-right">Acciones Rápidas</th>
                     </tr>
                 </thead>
                 <tbody id="inventory-tbody" class="divide-y divide-slate-100 text-[13.5px]">
@@ -202,8 +234,8 @@
                                 {{ $item['cantidad'] }}
                             </td>
                             <td class="py-4 px-5">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-800">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold {{ $item['cuadrilla'] === 'Bodega Central' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-800' }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $item['cuadrilla'] === 'Bodega Central' ? 'bg-emerald-600' : 'bg-blue-600' }}"></span>
                                     {{ $item['cuadrilla'] }}
                                 </span>
                                 <div class="text-xs text-slate-500 mt-1">{{ $item['responsable'] }}</div>
@@ -235,19 +267,47 @@
                                         {{ $item['estado'] }}
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
                                         {{ $item['estado'] }}
                                     </span>
                                 @endif
                             </td>
                             <td class="py-4 px-6 text-right whitespace-nowrap">
-                                <a href="{{ route('rastreo', ['focus' => strtolower(str_replace(' ', '-', $item['cuadrilla']))]) }}"
-                                   class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                    <span>Rastrear</span>
-                                </a>
+                                <div class="inline-flex items-center justify-end gap-1.5">
+                                    {{-- Botón de 1 Clic para mandar el producto directamente a Bodega Central --}}
+                                    @if($item['cuadrilla'] !== 'Bodega Central')
+                                        <form method="POST" action="{{ route('inventario.send_bodega') }}" class="inline">
+                                            @csrf
+                                            <input type="hidden" name="codigo" value="{{ $item['codigo'] }}">
+                                            <button type="submit"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
+                                                    title="Mandar este producto directamente a la Bodega Central">
+                                                <span>📦 A Bodega</span>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-500">
+                                            ✓ En Bodega Central
+                                        </span>
+                                    @endif
+
+                                    {{-- Botón Rastrear GPS (Bloqueado si es Cuenta Free) --}}
+                                    @if($isFreeAccount)
+                                        <a href="{{ route('suscripcion') }}"
+                                           class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
+                                           title="Rastreo GPS bloqueado en Cuenta Free — Renueva a Premium">
+                                            <span>🔒 GPS (Pro)</span>
+                                        </a>
+                                    @else
+                                        <a href="{{ route('rastreo', ['focus' => strtolower(str_replace(' ', '-', $item['cuadrilla']))]) }}"
+                                           class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>
+                                            </svg>
+                                            <span>Rastrear</span>
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -264,70 +324,147 @@
         </div>
     </div>
 
-    <!-- MODAL: ASIGNAR / REGISTRAR EQUIPO -->
+    {{-- =========================================================================
+         MODAL DE REGISTRO DE EQUIPO (SOPORTA ENVÍO DIRECTO A BODEGA CENTRAL
+         O ASIGNACIÓN A CUADRILLA / ENCARGO)
+       ========================================================================= --}}
     <div id="modal-nuevo-equipo" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div>
-                    <h3 class="text-base font-bold text-slate-800">Asignar Equipo a Cuadrilla / Encargo</h3>
-                    <p class="text-xs text-slate-400">Registro inmediato en el control de inventario de León</p>
+                    <h3 id="modal-title" class="text-base font-bold text-slate-800">Registrar Producto en Inventario</h3>
+                    <p id="modal-subtitle" class="text-xs text-slate-400">Elige si deseas enviarlo directo a Bodega Central o asignarlo a un encargo</p>
                 </div>
                 <button type="button" onclick="document.getElementById('modal-nuevo-equipo').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
             </div>
 
+            <!-- Selector Rápido de Destino (Bodega Central vs Encargo) -->
+            <div class="grid grid-cols-2 gap-2.5 mt-4 p-1 bg-slate-100 rounded-xl">
+                <button type="button"
+                        id="btn-mode-bodega"
+                        onclick="setModalMode('bodega')"
+                        class="py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer bg-emerald-600 text-white shadow-xs">
+                    📦 Directo a Bodega Central
+                </button>
+                <button type="button"
+                        id="btn-mode-encargo"
+                        onclick="setModalMode('encargo')"
+                        class="py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer text-slate-600 hover:text-slate-900">
+                    🚚 Asignar a Cuadrilla / Encargo
+                </button>
+            </div>
+
             <form id="form-nuevo-equipo" method="POST" action="{{ route('inventario.store') }}" class="space-y-4 mt-4">
                 @csrf
+                <input type="hidden" name="destino_tipo" id="input-destino-tipo" value="bodega">
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Código de Equipo</label>
-                        <input type="text" name="codigo" id="new-codigo" value="EQ-NEW-{{ rand(130, 999) }}" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Código de Equipo *</label>
+                        <input type="text"
+                               name="codigo"
+                               id="new-codigo"
+                               value="EQ-BOD-{{ rand(200, 999) }}"
+                               minlength="4"
+                               maxlength="30"
+                               pattern="[A-Za-z0-9\-]+"
+                               title="Solo letras, números y guiones (ej. EQ-BOD-205)"
+                               required
+                               class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Cantidad</label>
-                        <input type="text" name="cantidad" id="new-cantidad" value="2 Unidades" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Cantidad / Unidades *</label>
+                        <input type="text"
+                               name="cantidad"
+                               id="new-cantidad"
+                               value="5 Unidades"
+                               minlength="1"
+                               maxlength="60"
+                               required
+                               class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre de Herramienta / Recurso</label>
-                    <input type="text" name="nombre" id="new-nombre" placeholder="Ej. Analizador de Redes Trifásico Fluke" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Cuadrilla Asignada</label>
-                        <select name="cuadrilla" id="new-cuadrilla" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
-                            <option value="Cuadrilla A">Cuadrilla A</option>
-                            <option value="Cuadrilla B">Cuadrilla B</option>
-                            <option value="Cuadrilla C" selected>Cuadrilla C</option>
-                            <option value="Cuadrilla D">Cuadrilla D</option>
-                            <option value="Encargo Técnico">Encargo Técnico</option>
-                            <option value="Bodega Central">Bodega Central</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Responsable</label>
-                        <input type="text" name="responsable" id="new-responsable" value="Téc. Óscar Gurdián" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
-                    </div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nombre de Herramienta / Producto *</label>
+                    <input type="text"
+                           name="nombre"
+                           id="new-nombre"
+                           placeholder="Ej. Caja de Breakers Termomagnéticos Square D"
+                           minlength="3"
+                           maxlength="180"
+                           required
+                           class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Encargo / Destino en León</label>
-                    <select name="encargo" id="new-encargo" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
-                        <option value="Encargo #108 - Instalación Residencial Las Mercedes">Encargo #108 - Instalación Residencial Las Mercedes</option>
-                        <option value="Encargo #104 - Proyecto Centro Comercial">Encargo #104 - Proyecto Centro Comercial</option>
-                        <option value="Encargo #105 - Red Eléctrica Sutiaba">Encargo #105 - Red Eléctrica Sutiaba</option>
-                        <option value="Encargo #112 - Mantenimiento Subestación Sur">Encargo #112 - Mantenimiento Subestación Sur</option>
-                        <option value="Encargo #115 - Alumbrado Reparto Rubén Darío">Encargo #115 - Alumbrado Reparto Rubén Darío</option>
-                    </select>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Responsable que Recibe *</label>
+                    <input type="text"
+                           name="responsable"
+                           id="new-responsable"
+                           value="Ing. Mario Valladares (Bodega Central)"
+                           minlength="3"
+                           maxlength="120"
+                           required
+                           class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
                 </div>
 
-                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                    <button type="button" onclick="document.getElementById('modal-nuevo-equipo').classList.add('hidden')" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+                <!-- Aviso visual cuando está en modo Bodega Central -->
+                <div id="bodega-info-banner" class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                    <p class="font-bold">🏠 Destino: Bodega Central (León)</p>
+                    <p class="text-[11px] text-emerald-700 mt-0.5">
+                        El producto se guardará directamente en el stock de <strong>Bodega Central</strong> sin asignarlo a ningún encargo externo.
+                    </p>
+                </div>
+
+                <!-- Campos adicionales solo cuando se elige Asignar a Cuadrilla / Encargo -->
+                <div id="encargo-fields-wrapper" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Cuadrilla o Ubicación</label>
+                            <select name="cuadrilla" id="new-cuadrilla" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                                <option value="Bodega Central">🏠 Bodega Central (Almacén)</option>
+                                <option value="Cuadrilla A">Cuadrilla A</option>
+                                <option value="Cuadrilla B">Cuadrilla B</option>
+                                <option value="Cuadrilla C" selected>Cuadrilla C</option>
+                                <option value="Cuadrilla D">Cuadrilla D</option>
+                                <option value="Encargo Técnico">Encargo Técnico</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Encargo / Destino en León</label>
+                            <select name="encargo" id="new-encargo" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs">
+                                <option value="Stock Disponible en Bodega">📦 Stock Disponible en Bodega Central</option>
+                                <option value="Encargo #108 - Instalación Residencial Las Mercedes" selected>Encargo #108 - Residencial Las Mercedes</option>
+                                <option value="Encargo #104 - Proyecto Centro Comercial">Encargo #104 - Proyecto Centro Comercial</option>
+                                <option value="Encargo #105 - Red Eléctrica Sutiaba">Encargo #105 - Red Eléctrica Sutiaba</option>
+                                <option value="Encargo #112 - Mantenimiento Subestación Sur">Encargo #112 - Mantenimiento Subestación Sur</option>
+                                <option value="Encargo #115 - Alumbrado Reparto Rubén Darío">Encargo #115 - Alumbrado Reparto Rubén Darío</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button"
+                            onclick="document.getElementById('modal-nuevo-equipo').classList.add('hidden')"
+                            class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
                         Cancelar
                     </button>
-                    <button type="submit" class="px-4 py-2 rounded-xl text-xs font-semibold bg-[#2563eb] text-white hover:bg-blue-700 cursor-pointer">
-                        Guardar en Base de Datos
+
+                    <!-- Botón directo para enviar a Bodega Central en 1 clic -->
+                    <button type="submit"
+                            name="enviar_a_bodega"
+                            value="1"
+                            class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs cursor-pointer">
+                        📦 Mandar Directo a Bodega Central
+                    </button>
+
+                    <!-- Botón para guardar cuando está en modo Encargo -->
+                    <button type="submit"
+                            id="btn-submit-encargo"
+                            class="hidden px-4 py-2.5 rounded-xl text-xs font-bold bg-[#2563eb] text-white hover:bg-blue-700 shadow-xs cursor-pointer">
+                        🚚 Guardar y Asignar a Encargo
                     </button>
                 </div>
             </form>
@@ -338,6 +475,39 @@
 @push('scripts')
 <script>
     let currentCuadrilla = @json($filtroCuadrilla ?? 'todas');
+
+    function openInventoryModal(mode) {
+        document.getElementById('modal-nuevo-equipo').classList.remove('hidden');
+        setModalMode(mode);
+    }
+
+    function setModalMode(mode) {
+        const inputTipo = document.getElementById('input-destino-tipo');
+        const btnBodega = document.getElementById('btn-mode-bodega');
+        const btnEncargo = document.getElementById('btn-mode-encargo');
+        const bodegaBanner = document.getElementById('bodega-info-banner');
+        const encargoWrapper = document.getElementById('encargo-fields-wrapper');
+        const btnSubmitEncargo = document.getElementById('btn-submit-encargo');
+        const responsableInput = document.getElementById('new-responsable');
+
+        if (mode === 'bodega') {
+            inputTipo.value = 'bodega';
+            btnBodega.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer bg-emerald-600 text-white shadow-xs';
+            btnEncargo.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
+            bodegaBanner.classList.remove('hidden');
+            encargoWrapper.classList.add('hidden');
+            btnSubmitEncargo.classList.add('hidden');
+            responsableInput.value = 'Ing. Mario Valladares (Bodega Central)';
+        } else {
+            inputTipo.value = 'encargo';
+            btnEncargo.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer bg-[#2563eb] text-white shadow-xs';
+            btnBodega.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
+            bodegaBanner.classList.add('hidden');
+            encargoWrapper.classList.remove('hidden');
+            btnSubmitEncargo.classList.remove('hidden');
+            responsableInput.value = 'Téc. Óscar Gurdián';
+        }
+    }
 
     function setCuadrillaFilter(cuadrilla) {
         currentCuadrilla = cuadrilla;
@@ -385,61 +555,6 @@
         document.getElementById('filter-encargo').value = 'todos';
         document.getElementById('filter-estado').value = 'todos';
         setCuadrillaFilter('todas');
-    }
-
-    function handleNewEquipment(e) {
-        e.preventDefault();
-        const codigo = document.getElementById('new-codigo').value;
-        const nombre = document.getElementById('new-nombre').value;
-        const cantidad = document.getElementById('new-cantidad').value;
-        const cuadrilla = document.getElementById('new-cuadrilla').value;
-        const responsable = document.getElementById('new-responsable').value;
-        const encargo = document.getElementById('new-encargo').value;
-
-        const tbody = document.getElementById('inventory-tbody');
-        const tr = document.createElement('tr');
-        tr.className = 'inventory-row bg-blue-50/40 hover:bg-slate-50/80 transition-colors';
-        tr.setAttribute('data-cuadrilla', cuadrilla);
-        tr.setAttribute('data-encargo', encargo);
-        tr.setAttribute('data-estado', 'En Tránsito');
-        tr.setAttribute('data-search', (codigo + ' ' + nombre + ' ' + responsable + ' ' + cuadrilla + ' ' + encargo).toLowerCase());
-
-        tr.innerHTML = `
-            <td class="py-4 px-6">
-                <div class="font-bold text-slate-800 text-xs">${codigo}</div>
-                <div class="text-[11px] text-slate-400 font-mono mt-0.5">SN-NEW-2026</div>
-            </td>
-            <td class="py-4 px-5">
-                <div class="font-bold text-slate-800">${nombre}</div>
-                <div class="text-xs text-blue-600 font-medium mt-0.5">Recién asignado • Hace instantes</div>
-            </td>
-            <td class="py-4 px-4 font-semibold text-slate-700 text-xs whitespace-nowrap">${cantidad}</td>
-            <td class="py-4 px-5">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-800">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                    ${cuadrilla}
-                </span>
-                <div class="text-xs text-slate-500 mt-1">${responsable}</div>
-            </td>
-            <td class="py-4 px-5">
-                <div class="font-semibold text-slate-700 text-xs">${encargo}</div>
-                <div class="text-xs text-slate-400 mt-0.5">León, Nicaragua</div>
-            </td>
-            <td class="py-4 px-5 whitespace-nowrap">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#fef3c7] text-[#d97706]">
-                    En Tránsito
-                </span>
-            </td>
-            <td class="py-4 px-6 text-right whitespace-nowrap">
-                <a href="{{ route('rastreo') }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100">
-                    <span>Rastrear</span>
-                </a>
-            </td>
-        `;
-        tbody.prepend(tr);
-        document.getElementById('modal-nuevo-equipo').classList.add('hidden');
-        document.getElementById('form-nuevo-equipo').reset();
-        applyInventoryFilters();
     }
 
     document.addEventListener('DOMContentLoaded', function () {

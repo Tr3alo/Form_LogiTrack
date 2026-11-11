@@ -17,54 +17,54 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Controlador Principal LogiTrackController.
  *
- * Centraliza toda la lógica del SaaS LogiTrack:
- * 1. Landing Page comercial con modelo Freemium (14 días de prueba gratis -> $60 USD/mes).
- * 2. Autenticación de usuarios (Login, Registro con activación automática de 14 días de prueba y Logout).
- * 3. Módulos operativos del Dashboard (Resumen Operativo, Inventario, Rastreo GPS en León, Rutas y Envíos, Personal).
- * 4. Módulo de Administración de Suscripción SaaS para Carlos Martínez (cambio de plan, facturación y método de pago).
+ * Implementa:
+ * 1. Diferenciación y restricciones estrictas entre Cuenta FREE (`freemium`) y Cuenta PREMIUM (`pro` / `trial`):
+ *    - Cuenta FREE: Solo tiene acceso a `Dashboard` e `Inventario` (además de `Suscripción` para renovar).
+ *      No puede acceder a `Rastreo GPS`, `Rutas y Envíos` ni `Personal`.
+ *    - Cada vez que un usuario FREE navega entre Dashboard e Inventario, se activa un aviso en la
+ *      campanita de notificaciones recordándole que debe renovar su suscripción ($60/mes).
+ * 2. Gestión de Inventario con envío directo a `Bodega Central` en 1 clic (tanto al registrar un
+ *    producto nuevo como al retornar un equipo existente a bodega).
+ * 3. Validaciones robustas de entradas en todos los formularios (Login, Registro, Inventario y Facturación).
  */
 class LogiTrackController extends Controller
 {
     /**
-     * Garantiza que la base de datos tenga los registros semilla iniciales
-     * y devuelve el usuario activo (el usuario autenticado o Carlos Martínez por defecto en modo demo).
+     * Resuelve el usuario activo desde la sesión o carga por defecto a Carlos Martínez desde MySQL.
      */
     private function resolveActiveUser(): User
     {
-        // Si las tablas están creadas pero aún no tienen registros, ejecutamos el DatabaseSeeder automáticamente
         if (Schema::hasTable('users') && User::count() === 0) {
             (new DatabaseSeeder())->run();
         }
 
-        // Si existe sesión iniciada, retornamos el usuario autenticado
         if (Auth::check()) {
             return Auth::user();
         }
 
-        // Por defecto, obtenemos a Carlos Martínez (Gerente de Operaciones) desde la BD MySQL
         return User::where('email', 'c.martinez@logitrack.com.ni')->first()
             ?? User::first();
     }
 
     /**
-     * Obtiene y estructura los datos comunes desde la base de datos MySQL (`logitrack_demostration`)
-     * para alimentar el layout del Dashboard y sus vistas operativas.
+     * Construye el arreglo de datos comunes para las vistas del panel e inyecta el estado
+     * de permisos de la suscripción (`is_free`, `has_premium`) para aplicar restricciones en la interfaz.
      */
     private function getCommonData(): array
     {
-        // Asegurar que la base de datos tenga el inventario inicial
         if (Schema::hasTable('equipos') && Equipo::count() === 0) {
             (new DatabaseSeeder())->run();
         }
 
         $activeUser = $this->resolveActiveUser();
+        $isFree = $activeUser ? $activeUser->isFreeAccount() : false;
+        $hasPremium = $activeUser ? $activeUser->hasPremiumAccess() : true;
 
-        // Calcular etiqueta de estado de suscripción para mostrar en la barra superior y menú lateral
         $trialDays = $activeUser ? $activeUser->trial_days_remaining : 11;
         $planBadge = match ($activeUser->subscription_plan ?? 'trial') {
-            'pro' => 'Plan Pro Activo • $60/mes',
-            'freemium' => 'Plan Freemium • Básico',
-            default => "Prueba Gratis • {$trialDays} días restantes",
+            'pro' => 'Cuenta Premium • $60/mes',
+            'freemium' => 'Cuenta Free (Restringida)',
+            default => "Premium (Prueba: {$trialDays}d restantes)",
         };
 
         $user = [
@@ -89,6 +89,8 @@ class LogiTrackController extends Controller
             'billing_ruc' => $activeUser->billing_ruc ?? 'J0310000459128',
             'auto_renew' => (bool) ($activeUser->auto_renew ?? true),
             'plan_badge' => $planBadge,
+            'is_free' => $isFree,
+            'has_premium' => $hasPremium,
         ];
 
         $kpis = [
@@ -245,8 +247,6 @@ class LogiTrackController extends Controller
 
     /**
      * Muestra la Landing Page comercial de LogiTrack SaaS.
-     * Explica las capacidades del sistema (Inventario + Rastreo GPS + Rutas)
-     * y presenta el esquema Freemium con Prueba Gratis de 14 días y plan Pro de $60 USD/mes.
      */
     public function landing()
     {
@@ -262,8 +262,8 @@ class LogiTrackController extends Controller
     }
 
     /**
-     * Procesa la autenticación del usuario contra la base de datos MySQL.
-     * Incluye soporte para acceso rápido de demostración con la cuenta de Carlos Martínez.
+     * Procesa la autenticación del usuario con validación robusta de credenciales
+     * y soporte de acceso rápido demo (en modo Premium o modo Free para demostraciones).
      */
     public function login(Request $request)
     {
@@ -271,20 +271,45 @@ class LogiTrackController extends Controller
             (new DatabaseSeeder())->run();
         }
 
-        // Si el usuario pulsó "Acceso Rápido Demo (Carlos Martínez)"
+        // Acceso rápido de demostración como Carlos Martínez (permite elegir modo Free o Premium)
         if ($request->boolean('demo_login')) {
             $carlos = User::where('email', 'c.martinez@logitrack.com.ni')->first();
             if ($carlos) {
+                if ($request->input('demo_mode') === 'free') {
+                    $carlos->update([
+                        'subscription_plan' => 'freemium',
+                        'subscription_status' => 'freemium',
+                        'monthly_price' => 0.00,
+                        'auto_renew' => false,
+                    ]);
+                } elseif ($request->input('demo_mode') === 'premium') {
+                    $carlos->update([
+                        'subscription_plan' => 'pro',
+                        'subscription_status' => 'active',
+                        'monthly_price' => 60.00,
+                        'auto_renew' => true,
+                    ]);
+                }
+
                 Auth::login($carlos);
                 $request->session()->regenerate();
 
-                return redirect()->route('dashboard')->with('status', 'Bienvenido nuevamente, Carlos Martínez.');
+                return redirect()->route('dashboard')->with(
+                    'status',
+                    'Sesión iniciada como Carlos Martínez (' . ($carlos->isFreeAccount() ? 'Cuenta Free con restricciones' : 'Cuenta Premium Activa') . ').'
+                );
             }
         }
 
+        // Validación robusta de entradas en Login
         $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
+            'email' => ['required', 'string', 'email', 'max:150'],
+            'password' => ['required', 'string', 'min:6', 'max:100'],
+        ], [
+            'email.required' => 'Debes ingresar tu correo electrónico corporativo.',
+            'email.email' => 'Ingresa un formato de correo electrónico válido (ejemplo@empresa.com).',
+            'password.required' => 'Debes ingresar tu contraseña.',
+            'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
         ]);
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
@@ -294,7 +319,7 @@ class LogiTrackController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'Las credenciales ingresadas no coinciden con nuestros registros.',
+            'email' => 'Las credenciales ingresadas no coinciden con nuestros registros en la base de datos.',
         ])->onlyInput('email');
     }
 
@@ -309,9 +334,8 @@ class LogiTrackController extends Controller
     }
 
     /**
-     * Registra una nueva empresa/usuario en la base de datos e inicia automáticamente
-     * su periodo de Prueba Gratis de 14 días (con cobro programado de $60/mes al finalizar)
-     * o el plan Freemium seleccionado.
+     * Registra un nuevo usuario/empresa con validación estricta de campos
+     * y configura su tipo de cuenta (Free vs Prueba Gratis 14 Días / Premium $60/mes).
      */
     public function register(Request $request)
     {
@@ -320,25 +344,38 @@ class LogiTrackController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:120',
-            'email' => 'required|email|max:150|unique:users,email',
-            'company_name' => 'required|string|max:150',
-            'role' => 'nullable|string|max:100',
-            'phone' => 'nullable|string|max:40',
-            'plan_choice' => 'nullable|string|in:trial,pro,freemium',
-            'password' => 'required|string|min:6|confirmed',
+            'name' => ['required', 'string', 'min:3', 'max:120', 'regex:/^[\pL\s\.\-]+$/u'],
+            'email' => ['required', 'string', 'email', 'max:150', 'unique:users,email'],
+            'company_name' => ['required', 'string', 'min:3', 'max:150'],
+            'role' => ['required', 'string', 'min:3', 'max:100'],
+            'phone' => ['required', 'string', 'min:8', 'max:25', 'regex:/^[0-9\+\-\s\(\)]+$/'],
+            'plan_choice' => ['required', 'string', 'in:trial,pro,freemium'],
+            'password' => ['required', 'string', 'min:6', 'max:100', 'confirmed'],
+        ], [
+            'name.required' => 'El nombre completo del administrador es obligatorio.',
+            'name.min' => 'El nombre debe contener al menos 3 caracteres.',
+            'name.regex' => 'El nombre solo puede contener letras y espacios.',
+            'email.required' => 'El correo electrónico corporativo es obligatorio.',
+            'email.email' => 'Ingresa un correo electrónico válido.',
+            'email.unique' => 'Este correo electrónico ya está registrado en LogiTrack.',
+            'company_name.required' => 'El nombre de la empresa es obligatorio.',
+            'company_name.min' => 'El nombre de la empresa debe tener al menos 3 caracteres.',
+            'role.required' => 'El cargo dentro de la empresa es obligatorio.',
+            'phone.required' => 'El teléfono de contacto es obligatorio.',
+            'phone.regex' => 'El teléfono solo puede contener números, espacios y el signo +.',
+            'password.min' => 'La contraseña debe tener un mínimo de 6 caracteres.',
+            'password.confirmed' => 'La confirmación de contraseña no coincide.',
         ]);
 
-        $planChoice = $validated['plan_choice'] ?? 'trial';
+        $planChoice = $validated['plan_choice'];
 
-        // Configurar las fechas de la prueba gratuita de 14 días y el precio mensual de $60 USD
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
+            'name' => trim($validated['name']),
+            'email' => strtolower(trim($validated['email'])),
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?: 'Gerente de Operaciones',
-            'company_name' => $validated['company_name'],
-            'phone' => $validated['phone'] ?: '+505 8800-0000',
+            'role' => trim($validated['role']),
+            'company_name' => trim($validated['company_name']),
+            'phone' => trim($validated['phone']),
             'subscription_plan' => $planChoice,
             'subscription_status' => $planChoice === 'pro' ? 'active' : ($planChoice === 'freemium' ? 'freemium' : 'on_trial'),
             'monthly_price' => $planChoice === 'freemium' ? 0.00 : 60.00,
@@ -348,21 +385,20 @@ class LogiTrackController extends Controller
             'payment_method_brand' => 'Visa Corporativa',
             'payment_method_last4' => '4821',
             'billing_ruc' => 'J0310000991204',
-            'auto_renew' => true,
+            'auto_renew' => $planChoice !== 'freemium',
         ]);
 
-        // Crear el registro de activación en el historial de suscripción
         PagoSuscripcion::create([
             'user_id' => $user->id,
             'referencia' => 'SUB-' . date('Y') . '-' . rand(100, 999),
             'concepto' => $planChoice === 'freemium'
-                ? 'Activación Plan Freemium Básico ($0/mes)'
-                : 'Activación Prueba Gratis 14 Días (Luego $60.00 USD/mes)',
+                ? 'Registro en Cuenta Free (Solo Dashboard e Inventario)'
+                : 'Activación Prueba Gratis 14 Días (Acceso Premium -> $60.00 USD/mes)',
             'plan' => $planChoice,
             'monto' => $planChoice === 'pro' ? 60.00 : 0.00,
             'moneda' => 'USD',
             'metodo_pago' => 'Registro Inicial Web',
-            'estado' => $planChoice === 'pro' ? 'Pagado' : 'Prueba 14 Días Activa',
+            'estado' => $planChoice === 'pro' ? 'Pagado' : ($planChoice === 'freemium' ? 'Cuenta Free' : 'Prueba 14 Días Activa'),
             'fecha_emision' => now()->format('d/m/Y'),
         ]);
 
@@ -371,12 +407,14 @@ class LogiTrackController extends Controller
 
         return redirect()->route('dashboard')->with(
             'status',
-            '¡Cuenta creada con éxito! Tu prueba gratuita de 14 días de LogiTrack Pro está activa.'
+            $planChoice === 'freemium'
+                ? 'Cuenta Free creada. Tienes acceso a Dashboard e Inventario. Renueva tu suscripción para desbloquear GPS, Rutas y Personal.'
+                : '¡Cuenta creada con éxito! Tu prueba gratuita de 14 días con acceso Premium está activa.'
         );
     }
 
     /**
-     * Cierra la sesión activa del usuario y redirige a la Landing Page.
+     * Cierra la sesión activa del usuario.
      */
     public function logout(Request $request)
     {
@@ -389,6 +427,8 @@ class LogiTrackController extends Controller
 
     /**
      * Vista 1: Resumen Operativo (Dashboard Principal).
+     * Permitido tanto para cuentas FREE como PREMIUM.
+     * Si el usuario es FREE, activa la alerta en la campanita de notificaciones al entrar a la vista.
      */
     public function dashboard()
     {
@@ -396,12 +436,16 @@ class LogiTrackController extends Controller
         $data['activePage'] = 'dashboard';
         $data['pageTitle'] = 'Resumen Operativo';
         $data['pageSubtitle'] = 'Vista general de flota y herramientas - 29/10/2026';
+        // Dispara el aviso en la campanita cada vez que un usuario Free cambia de vista a Dashboard
+        $data['triggerBellRenewal'] = $data['user']['is_free'];
 
         return view('logitrack.dashboard', $data);
     }
 
     /**
-     * Vista 2: Inventario de Equipos y Recursos (filtrable por cuadrilla y encargo).
+     * Vista 2: Inventario de Equipos y Recursos.
+     * Permitido tanto para cuentas FREE como PREMIUM.
+     * Si el usuario es FREE, activa la alerta en la campanita de notificaciones al cambiar a Inventario.
      */
     public function inventario(Request $request)
     {
@@ -411,54 +455,147 @@ class LogiTrackController extends Controller
         $data['pageSubtitle'] = 'Control de herramientas por cuadrilla, encargos y bodega central - León, Nicaragua';
         $data['filtroCuadrilla'] = $request->query('cuadrilla', 'todas');
         $data['filtroEncargo'] = $request->query('encargo', 'todos');
+        // Dispara el aviso en la campanita cada vez que un usuario Free cambia de vista a Inventario
+        $data['triggerBellRenewal'] = $data['user']['is_free'];
 
         return view('logitrack.inventario', $data);
     }
 
     /**
-     * Guarda un nuevo equipo o asignación directamente en la tabla `equipos` de MySQL.
+     * Guarda un nuevo equipo en la tabla `equipos` de MySQL con validación robusta.
+     * Soporta dos modos:
+     * 1. Envío directo a Bodega Central (`destino_tipo = 'bodega'` o botón directo a bodega).
+     * 2. Asignación a una Cuadrilla y Encargo específico (`destino_tipo = 'encargo'`).
      */
     public function storeEquipo(Request $request)
     {
-        $validated = $request->validate([
-            'codigo' => 'required|string|max:50',
-            'nombre' => 'required|string|max:180',
-            'cantidad' => 'required|string|max:60',
-            'cuadrilla' => 'required|string|max:80',
-            'responsable' => 'required|string|max:120',
-            'encargo' => 'required|string|max:180',
+        $esDirectoBodega = $request->input('destino_tipo') === 'bodega'
+            || $request->boolean('enviar_a_bodega')
+            || $request->input('cuadrilla') === 'Bodega Central';
+
+        $rules = [
+            'codigo' => ['required', 'string', 'min:4', 'max:30', 'regex:/^[A-Za-z0-9\-]+$/'],
+            'nombre' => ['required', 'string', 'min:3', 'max:180'],
+            'categoria' => ['nullable', 'string', 'max:80'],
+            'cantidad' => ['required', 'string', 'min:1', 'max:60'],
+            'responsable' => ['required', 'string', 'min:3', 'max:120'],
+        ];
+
+        if (! $esDirectoBodega) {
+            $rules['cuadrilla'] = ['required', 'string', 'max:80'];
+            $rules['encargo'] = ['required', 'string', 'max:180'];
+        }
+
+        $validated = $request->validate($rules, [
+            'codigo.required' => 'El código del equipo es obligatorio.',
+            'codigo.min' => 'El código debe tener al menos 4 caracteres.',
+            'codigo.regex' => 'El código solo puede contener letras, números y guiones (ej. EQ-BOD-201).',
+            'nombre.required' => 'El nombre de la herramienta o producto es obligatorio.',
+            'nombre.min' => 'El nombre del equipo debe tener al menos 3 caracteres.',
+            'cantidad.required' => 'Debes especificar la cantidad o unidades del producto.',
+            'responsable.required' => 'Debes indicar el responsable o encargado que recibe.',
+            'responsable.min' => 'El nombre del responsable debe tener al menos 3 caracteres.',
         ]);
 
+        // Si se envía directamente a Bodega Central, se asignan los valores de custodia en almacén
+        $cuadrillaFinal = $esDirectoBodega ? 'Bodega Central' : trim($request->input('cuadrilla', 'Cuadrilla C'));
+        $encargoFinal = $esDirectoBodega ? 'Stock Disponible en Bodega' : trim($request->input('encargo', 'Stock Disponible en Bodega'));
+        $ubicacionFinal = $esDirectoBodega ? 'Bodega Central, León' : 'León, Nicaragua (' . $cuadrillaFinal . ')';
+        $estadoFinal = $esDirectoBodega ? 'En Bodega' : 'En Tránsito';
+        $colorFinal = $esDirectoBodega ? 'slate' : 'yellow';
+
         Equipo::updateOrCreate(
-            ['codigo' => $validated['codigo']],
+            ['codigo' => strtoupper(trim($validated['codigo']))],
             [
-                'nombre' => $validated['nombre'],
-                'nombre_corto' => $validated['nombre'],
-                'categoria' => 'Equipamiento Operativo',
+                'nombre' => trim($validated['nombre']),
+                'nombre_corto' => trim($validated['nombre']),
+                'categoria' => trim($validated['categoria'] ?? ($esDirectoBodega ? 'Almacén / Bodega Central' : 'Equipamiento Operativo')),
                 'serie' => 'SN-' . strtoupper(substr(md5($validated['codigo']), 0, 6)),
-                'cantidad' => $validated['cantidad'],
-                'cuadrilla' => $validated['cuadrilla'],
-                'responsable' => $validated['responsable'],
-                'encargo' => $validated['encargo'],
-                'ubicacion' => 'León, Nicaragua (' . $validated['cuadrilla'] . ')',
-                'destino_movimiento' => $validated['encargo'],
-                'estado' => 'En Tránsito',
-                'estado_color' => 'yellow',
+                'cantidad' => trim($validated['cantidad']),
+                'cuadrilla' => $cuadrillaFinal,
+                'responsable' => trim($validated['responsable']),
+                'encargo' => $encargoFinal,
+                'ubicacion' => $ubicacionFinal,
+                'destino_movimiento' => $esDirectoBodega ? 'Bodega Central' : $encargoFinal,
+                'estado' => $estadoFinal,
+                'estado_color' => $colorFinal,
                 'ultima_actualizacion' => 'Ahora mismo',
                 'es_movimiento_bodega' => true,
             ]
         );
 
         return redirect()
-            ->route('inventario', ['cuadrilla' => $validated['cuadrilla']])
-            ->with('status', 'Equipo registrado y asignado en la base de datos MySQL correctamente.');
+            ->route('inventario', ['cuadrilla' => $cuadrillaFinal])
+            ->with(
+                'status',
+                $esDirectoBodega
+                    ? "Producto [{$validated['nombre']}] ingresado directamente a Bodega Central en la base de datos."
+                    : "Equipo [{$validated['nombre']}] asignado a {$cuadrillaFinal} ({$encargoFinal}) correctamente."
+            );
     }
 
     /**
-     * Vista 3: Rastreo GPS en Tiempo Real (Leaflet centrado en León, Nicaragua).
+     * Acción de 1 clic para enviar o retornar cualquier producto del inventario
+     * directamente a la Bodega Central en la base de datos MySQL.
+     */
+    public function sendToBodega(Request $request)
+    {
+        $validated = $request->validate([
+            'codigo' => ['required', 'string', 'exists:equipos,codigo'],
+        ], [
+            'codigo.required' => 'Código de equipo no especificado.',
+            'codigo.exists' => 'El equipo seleccionado no existe en el inventario.',
+        ]);
+
+        $equipo = Equipo::where('codigo', $validated['codigo'])->firstOrFail();
+
+        $equipo->update([
+            'cuadrilla' => 'Bodega Central',
+            'responsable' => 'Ing. Mario Valladares (Bodega)',
+            'encargo' => 'Stock Disponible en Bodega',
+            'ubicacion' => 'Bodega Central, León',
+            'destino_movimiento' => 'Bodega Central',
+            'estado' => 'En Bodega',
+            'estado_color' => 'slate',
+            'ultima_actualizacion' => 'Recibido en Bodega (Ahora)',
+            'es_movimiento_bodega' => true,
+        ]);
+
+        return redirect()
+            ->route('inventario', ['cuadrilla' => 'Bodega Central'])
+            ->with('status', "El producto [{$equipo->nombre_corto}] fue enviado directamente a Bodega Central.");
+    }
+
+    /**
+     * Verifica si el usuario actual tiene permiso Premium para acceder a módulos restringidos
+     * (`Rastreo GPS`, `Rutas y Envíos`, `Personal`). Si es cuenta FREE, bloquea el acceso y
+     * redirige a la vista de Suscripción con el aviso en la campanita.
+     */
+    private function checkPremiumOrRedirect(string $moduloNombre)
+    {
+        $activeUser = $this->resolveActiveUser();
+
+        if ($activeUser && $activeUser->isFreeAccount()) {
+            return redirect()
+                ->route('suscripcion')
+                ->with(
+                    'restricted_error',
+                    "Acceso restringido: El apartado de «{$moduloNombre}» es exclusivo para cuentas Premium ($60/mes). Tu cuenta actual es Free (solo acceso a Dashboard e Inventario). Renueva tu suscripción para desbloquearlo."
+                );
+        }
+
+        return null;
+    }
+
+    /**
+     * Vista 3: Rastreo GPS en Tiempo Real (Exclusivo Cuenta Premium).
      */
     public function rastreo(Request $request)
     {
+        if ($redirect = $this->checkPremiumOrRedirect('Rastreo GPS')) {
+            return $redirect;
+        }
+
         $data = $this->getCommonData();
         $data['activePage'] = 'rastreo';
         $data['pageTitle'] = 'Rastreo GPS en Tiempo Real';
@@ -469,10 +606,14 @@ class LogiTrackController extends Controller
     }
 
     /**
-     * Vista 4: Rutas y Envíos con Señal de Destino.
+     * Vista 4: Rutas y Envíos con Señal de Destino (Exclusivo Cuenta Premium).
      */
     public function rutas()
     {
+        if ($redirect = $this->checkPremiumOrRedirect('Rutas y Envíos')) {
+            return $redirect;
+        }
+
         $data = $this->getCommonData();
         $data['activePage'] = 'rutas';
         $data['pageTitle'] = 'Rutas y Envíos Activos';
@@ -482,10 +623,14 @@ class LogiTrackController extends Controller
     }
 
     /**
-     * Vista 5: Directorio de Personal (Encargados de Bodega, Choferes, Técnicos).
+     * Vista 5: Directorio de Personal (Exclusivo Cuenta Premium).
      */
     public function personal(Request $request)
     {
+        if ($redirect = $this->checkPremiumOrRedirect('Personal')) {
+            return $redirect;
+        }
+
         $data = $this->getCommonData();
         $data['activePage'] = 'personal';
         $data['pageTitle'] = 'Personal y Cuadrillas';
@@ -497,8 +642,6 @@ class LogiTrackController extends Controller
 
     /**
      * Vista 6: Administración de Suscripción SaaS (Carlos Martínez).
-     * Muestra el estado actual del plan (Freemium / Prueba de 14 días / Plan Pro de $60 USD al mes),
-     * consumo de recursos de la empresa, método de pago e historial de facturación desde MySQL.
      */
     public function suscripcion()
     {
@@ -507,21 +650,18 @@ class LogiTrackController extends Controller
 
         $data['activePage'] = 'suscripcion';
         $data['pageTitle'] = 'Suscripción y Facturación SaaS';
-        $data['pageSubtitle'] = 'Administra tu prueba gratuita de 14 días, Plan Empresarial de $60/mes y métodos de pago';
+        $data['pageSubtitle'] = 'Administra tu prueba gratuita de 14 días, Plan Empresarial de $60/mes y permisos de cuenta';
         $data['pagos'] = $activeUser
             ? $activeUser->pagosSuscripcion()->get()
             : collect();
+        $data['triggerBellRenewal'] = $data['user']['is_free'];
 
         return view('logitrack.suscripcion', $data);
     }
 
     /**
-     * Procesa los cambios en la suscripción de Carlos Martínez (o usuario activo) y los persiste en MySQL:
-     * - `upgrade_pro`: Pasa inmediatamente al Plan Pro de $60.00 USD/mes y genera factura pagada.
-     * - `start_trial`: Activa o reinicia la Prueba Gratis de 14 días ($0 hoy -> $60/mes al día 15).
-     * - `switch_freemium`: Cambia al Plan Freemium Básico ($0/mes con límites operativos).
-     * - `toggle_autorenew`: Activa o pausa la renovación automática mensual.
-     * - `update_billing`: Actualiza tarjeta corporativa, empresa y RUC en la base de datos.
+     * Procesa los cambios de plan (Free vs Prueba 14d vs Premium $60/mes) y actualiza los
+     * datos de facturación con validación estricta en la base de datos MySQL.
      */
     public function updateSuscripcion(Request $request)
     {
@@ -540,7 +680,7 @@ class LogiTrackController extends Controller
             PagoSuscripcion::create([
                 'user_id' => $activeUser->id,
                 'referencia' => 'FAC-' . date('Y') . '-' . rand(1000, 9999),
-                'concepto' => 'Suscripción Mensual LogiTrack Pro — Flota e Inventario Ilimitado',
+                'concepto' => 'Suscripción Mensual LogiTrack Premium — Acceso Total Desbloqueado',
                 'plan' => 'pro',
                 'monto' => 60.00,
                 'moneda' => 'USD',
@@ -551,7 +691,7 @@ class LogiTrackController extends Controller
 
             return redirect()->route('suscripcion')->with(
                 'status',
-                '¡Plan Empresarial Pro ($60.00 USD/mes) activado con éxito! Se ha registrado tu recibo en el historial.'
+                '¡Cuenta actualizada a Plan Premium ($60.00 USD/mes)! Se han desbloqueado Rastreo GPS, Rutas y Envíos, y Personal.'
             );
         }
 
@@ -569,7 +709,7 @@ class LogiTrackController extends Controller
             PagoSuscripcion::create([
                 'user_id' => $activeUser->id,
                 'referencia' => 'TRL-' . date('Y') . '-' . rand(1000, 9999),
-                'concepto' => 'Inicio de Prueba Gratis de 14 Días (Seguido de Plan Pro $60.00 USD/mes)',
+                'concepto' => 'Inicio de Prueba Gratis de 14 Días (Acceso Premium -> $60.00 USD/mes)',
                 'plan' => 'trial',
                 'monto' => 0.00,
                 'moneda' => 'USD',
@@ -580,7 +720,7 @@ class LogiTrackController extends Controller
 
             return redirect()->route('suscripcion')->with(
                 'status',
-                'Periodo de Prueba Gratis de 14 días activado. Tendrás acceso completo sin costo antes del cargo mensual de $60.00 USD.'
+                'Periodo de Prueba Gratis de 14 días activado con acceso Premium completo.'
             );
         }
 
@@ -595,18 +735,18 @@ class LogiTrackController extends Controller
             PagoSuscripcion::create([
                 'user_id' => $activeUser->id,
                 'referencia' => 'FRM-' . date('Y') . '-' . rand(1000, 9999),
-                'concepto' => 'Cambio a Plan Freemium Básico ($0.00 USD/mes)',
+                'concepto' => 'Cambio a Cuenta Free (Restringida a Dashboard e Inventario)',
                 'plan' => 'freemium',
                 'monto' => 0.00,
                 'moneda' => 'USD',
                 'metodo_pago' => 'Sin Cargo',
-                'estado' => 'Activo ($0/mes)',
+                'estado' => 'Cuenta Free ($0/mes)',
                 'fecha_emision' => now()->format('d/m/Y'),
             ]);
 
-            return redirect()->route('suscripcion')->with(
+            return redirect()->route('dashboard')->with(
                 'status',
-                'Tu cuenta ha cambiado al Plan Freemium ($0/mes). Puedes volver al Plan Pro de $60/mes en cualquier momento.'
+                'Has cambiado a Cuenta Free ($0/mes). Ahora solo tienes acceso a Dashboard e Inventario; Rastreo GPS, Rutas y Personal están bloqueados.'
             );
         }
 
@@ -621,23 +761,36 @@ class LogiTrackController extends Controller
                 'status',
                 $newAutoRenew
                     ? 'Renovación automática mensual ($60.00 USD/mes) reactivada.'
-                    : 'Renovación automática pausada. Conservarás el acceso hasta el final de tu ciclo actual.'
+                    : 'Suscripción cancelada/pausada. Tu cuenta ha pasado a modo restringido (Free) hasta que renueves.'
             );
         }
 
-        // Actualización de datos de facturación y método de pago corporativo
+        // Validación robusta de los datos de facturación y método de pago corporativo
         $validated = $request->validate([
-            'company_name' => 'required|string|max:150',
-            'billing_ruc' => 'required|string|max:50',
-            'payment_method_brand' => 'required|string|max:60',
-            'payment_method_last4' => 'required|digits:4',
+            'company_name' => ['required', 'string', 'min:3', 'max:150'],
+            'billing_ruc' => ['required', 'string', 'min:8', 'max:25', 'regex:/^[A-Za-z0-9\-]+$/'],
+            'payment_method_brand' => ['required', 'string', 'in:Visa Corporativa,Mastercard Empresarial,BAC Credomatic León,Banpro Corporativo'],
+            'payment_method_last4' => ['required', 'digits:4'],
+        ], [
+            'company_name.required' => 'La razón social de la empresa es obligatoria.',
+            'company_name.min' => 'La razón social debe tener al menos 3 caracteres.',
+            'billing_ruc.required' => 'El número RUC fiscal es obligatorio.',
+            'billing_ruc.min' => 'El número RUC debe tener al menos 8 caracteres.',
+            'billing_ruc.regex' => 'El RUC solo debe contener letras, números o guiones.',
+            'payment_method_last4.required' => 'Los últimos 4 dígitos de la tarjeta son obligatorios.',
+            'payment_method_last4.digits' => 'Debes ingresar exactamente 4 dígitos numéricos para la tarjeta.',
         ]);
 
-        $activeUser->update($validated);
+        $activeUser->update([
+            'company_name' => trim($validated['company_name']),
+            'billing_ruc' => strtoupper(trim($validated['billing_ruc'])),
+            'payment_method_brand' => $validated['payment_method_brand'],
+            'payment_method_last4' => $validated['payment_method_last4'],
+        ]);
 
         return redirect()->route('suscripcion')->with(
             'status',
-            'Datos de facturación y método de pago corporativo actualizados en la base de datos.'
+            'Datos de facturación y tarjeta corporativa validados y guardados en la base de datos.'
         );
     }
 }

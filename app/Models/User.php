@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notifiable;
 /**
  * Modelo User de LogiTrack SaaS.
  * Representa al administrador o gerente operativo de la empresa cliente (ej. Carlos Martínez)
- * e incluye la lógica del modelo Freemium con prueba gratuita de 14 días y plan Pro de $60/mes.
+ * e incluye la lógica de permisos entre cuentas FREE (Freemium) y cuentas PREMIUM (Trial 14d / Pro $60/mes).
  */
 class User extends Authenticatable
 {
@@ -103,5 +103,26 @@ class User extends Authenticatable
         $diff = now()->diffInDays($this->trial_ends_at, false);
 
         return max(0, (int) ceil($diff));
+    }
+
+    /**
+     * Determina si el usuario se encuentra en el plan gratuito restringido (Freemium)
+     * o con la suscripción cancelada/vencida.
+     * Un usuario Free solo tiene acceso a Dashboard e Inventario.
+     */
+    public function isFreeAccount(): bool
+    {
+        return $this->subscription_plan === 'freemium'
+            || $this->subscription_status === 'freemium'
+            || $this->subscription_status === 'cancelled';
+    }
+
+    /**
+     * Determina si el usuario tiene acceso Premium completo (Plan Pro $60/mes o Prueba Gratis 14 días activa).
+     * Permite acceder a Rastreo GPS, Rutas y Envíos, y Personal.
+     */
+    public function hasPremiumAccess(): bool
+    {
+        return ! $this->isFreeAccount();
     }
 }

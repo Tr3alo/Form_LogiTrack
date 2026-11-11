@@ -289,9 +289,9 @@
                 </a>
 
                 <a href="{{ route('rastreo') }}" class="p-6 rounded-2xl bg-slate-50 hover:bg-blue-50/50 border border-slate-200/80 hover:border-blue-300 transition-all group">
-                    <span class="text-xs font-bold text-blue-600">03 • GEOLOCALIZACIÓN LEAFLET</span>
+                    <span class="text-xs font-bold text-blue-600">03 • FUNCIÓN GPS</span>
                     <h4 class="text-base font-bold text-slate-900 mt-1 group-hover:text-blue-600">Rastreo GPS en León, Nicaragua</h4>
-                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">Mapa callejero y satelital con simulación en vivo de Cuadrillas A, B, C y D, velocidad y carga a bordo.</p>
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">Mapa callejero y satelital con simulación en vivo de Cuadrillas, velocidad y carga a bordo.</p>
                 </a>
 
                 <a href="{{ route('rutas') }}" class="p-6 rounded-2xl bg-slate-50 hover:bg-blue-50/50 border border-slate-200/80 hover:border-blue-300 transition-all group">
@@ -345,7 +345,7 @@
                     </p>
 
                     <div class="mt-6 flex items-baseline gap-1">
-                        <span class="text-4xl font-extrabold text-slate-900">\$0</span>
+                        <span class="text-4xl font-extrabold text-slate-900">$0</span>
                         <span class="text-sm font-semibold text-slate-400">USD / mes</span>
                     </div>
 
@@ -372,7 +372,7 @@
                 <div class="mt-8 pt-6 border-t border-slate-100">
                     <a href="{{ route('register', ['plan' => 'freemium']) }}"
                        class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-bold transition-all">
-                        Comenzar con Plan Freemium (\$0)
+                        Comenzar con Plan Freemium ($0)
                     </a>
                 </div>
             </div>
@@ -395,11 +395,11 @@
                     </p>
 
                     <div class="mt-6 flex items-baseline gap-2">
-                        <span class="text-4xl font-extrabold text-white">\$60</span>
+                        <span class="text-4xl font-extrabold text-white">$60</span>
                         <span class="text-sm font-semibold text-slate-400">USD / mes tras los 14 días de prueba gratis</span>
                     </div>
                     <p class="text-xs text-emerald-400 font-semibold mt-1">
-                        Hoy pagas \$0.00 USD — Prueba gratuita completa durante 14 días
+                        Hoy pagas $0.00 USD — Prueba gratuita completa durante 14 días
                     </p>
 
                     <ul class="mt-7 space-y-3 text-xs text-slate-200">
@@ -429,7 +429,7 @@
                 <div class="mt-8 pt-6 border-t border-slate-800">
                     <a href="{{ route('register', ['plan' => 'trial']) }}"
                        class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl bg-[#2563eb] hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all">
-                        Activar Prueba Gratis de 14 Días (Luego \$60/mes)
+                        Activar Prueba Gratis de 14 Días (Luego $60/mes)
                     </a>
                 </div>
             </div>
@@ -449,8 +449,6 @@
             <div class="flex flex-wrap items-center gap-6 text-xs font-medium">
                 <a href="{{ route('login') }}" class="hover:text-white transition-colors">Iniciar Sesión</a>
                 <a href="{{ route('register') }}" class="hover:text-white transition-colors">Registrarse (14 Días Gratis)</a>
-                <a href="{{ route('dashboard') }}" class="hover:text-white transition-colors">Ir al Dashboard</a>
-                <a href="{{ route('suscripcion') }}" class="hover:text-white transition-colors">Suscripción (\$60/mes)</a>
             </div>
         </div>
     </footer>

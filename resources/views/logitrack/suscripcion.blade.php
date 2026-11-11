@@ -24,7 +24,7 @@
                         </span>
                     @elseif(($user['subscription_plan'] ?? 'trial') === 'freemium')
                         <span class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-slate-700 text-slate-200">
-                            Plan Freemium Básico (\$0/mes)
+                            Plan Freemium Básico ($0/mes)
                         </span>
                     @else
                         <span class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30">
@@ -42,7 +42,7 @@
                         Prueba Gratis de 14 Días — Quedan {{ $user['trial_days_remaining'] }} días
                     </h2>
                     <p class="text-sm text-slate-300 mt-2 leading-relaxed">
-                        Estás disfrutando de todas las funciones del <strong>Plan Empresarial Pro</strong> sin costo durante 14 días (desde el {{ $user['trial_starts_at'] }} hasta el <strong>{{ $user['trial_ends_at'] }}</strong>). Al finalizar la prueba, tu suscripción se renovará automáticamente por <strong>\$60.00 USD al mes</strong>.
+                        Estás disfrutando de todas las funciones del <strong>Plan Empresarial Pro</strong> sin costo durante 14 días (desde el {{ $user['trial_starts_at'] }} hasta el <strong>{{ $user['trial_ends_at'] }}</strong>). Al finalizar la prueba, tu suscripción se renovará automáticamente por <strong>$60.00 USD al mes</strong>.
                     </p>
 
                     <!-- Barra de progreso de los 14 días de prueba -->
@@ -53,7 +53,7 @@
                     <div class="mt-5 max-w-xl">
                         <div class="flex items-center justify-between text-xs mb-1.5">
                             <span class="text-blue-300 font-semibold">Avance de la prueba gratuita ({{ $daysUsed }} de 14 días utilizados)</span>
-                            <span class="text-slate-300 font-mono">Próximo cobro: {{ $user['next_billing_at'] }} (\$60.00 USD)</span>
+                            <span class="text-slate-300 font-mono">Próximo cobro: {{ $user['next_billing_at'] }} ($60.00 USD)</span>
                         </div>
                         <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
                             <div class="h-full bg-[#3b82f6] rounded-full" style="width: {{ $trialPercent }}%"></div>
@@ -61,17 +61,17 @@
                     </div>
                 @elseif(($user['subscription_plan'] ?? 'trial') === 'pro')
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
-                        Suscripción LogiTrack Pro — \$60.00 USD / mes
+                        Suscripción LogiTrack Pro — $60.00 USD / mes
                     </h2>
                     <p class="text-sm text-slate-300 mt-2 leading-relaxed">
                         Tu empresa cuenta con acceso ilimitado al control de inventario por cuadrilla, rastreo GPS satelital en León y señales de destino activas. Próxima fecha de facturación: <strong>{{ $user['next_billing_at'] }}</strong>.
                     </p>
                 @else
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
-                        Plan Freemium Básico — \$0.00 USD / mes
+                        Plan Freemium Básico — $0.00 USD / mes
                     </h2>
                     <p class="text-sm text-slate-300 mt-2 leading-relaxed">
-                        Actualmente utilizas la modalidad gratuita con límites operativos. Activa la <strong>Prueba Gratis de 14 días</strong> o pasa al <strong>Plan Pro (\$60/mes)</strong> para desbloquear todas las cuadrillas GPS en León.
+                        Actualmente utilizas la modalidad gratuita con límites operativos. Activa la <strong>Prueba Gratis de 14 días</strong> o pasa al <strong>Plan Pro ($60/mes)</strong> para desbloquear todas las cuadrillas GPS en León.
                     </p>
                 @endif
             </div>
@@ -83,13 +83,13 @@
                         <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Tarifa Mensual del Plan</span>
                         <div class="flex items-baseline gap-1.5 mt-1">
                             <span class="text-3xl font-extrabold text-white">
-                                \${{ number_format((float) ($user['monthly_price'] ?? 60), 2) }}
+                                ${{ number_format((float) ($user['monthly_price'] ?? 60), 2) }}
                             </span>
                             <span class="text-xs text-slate-400">USD / mes</span>
                         </div>
                         @if(($user['subscription_plan'] ?? 'trial') === 'trial')
                             <span class="text-[11px] text-emerald-400 font-semibold">
-                                \$0.00 cobrados hoy (en prueba de 14 días)
+                                $0.00 cobrados hoy (en prueba de 14 días)
                             </span>
                         @endif
                     </div>
@@ -111,7 +111,7 @@
                             <input type="hidden" name="action" value="upgrade_pro">
                             <button type="submit"
                                     class="w-full py-2.5 px-4 rounded-xl bg-[#2563eb] hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/25 transition-all cursor-pointer">
-                                Confirmar y Activar Plan Pro Ahora (\$60.00 USD / mes)
+                                Confirmar y Activar Plan Pro Ahora ($60.00 USD / mes)
                             </button>
                         </form>
                     @endif
@@ -134,7 +134,7 @@
                                 <input type="hidden" name="action" value="switch_freemium">
                                 <button type="submit"
                                         class="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition-all cursor-pointer">
-                                    Cambiar a Freemium (\$0)
+                                    Cambiar a Freemium ($0)
                                 </button>
                             </form>
                         @endif
@@ -151,6 +151,48 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- COMPARATIVA DE PERMISOS Y RESTRICCIONES: CUENTA FREE VS CUENTA PREMIUM -->
+    <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-xs mb-7">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+            <div>
+                <h3 class="text-base font-bold text-slate-800">Diferencias de Acceso: Cuenta Free vs Cuenta Premium ($60/mes)</h3>
+                <p class="text-xs text-slate-400">Las cuentas Free solo tienen vista a Dashboard e Inventario y reciben aviso de renovación en la campanita al cambiar de módulo</p>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-extrabold {{ ($user['is_free'] ?? false) ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">
+                Estado Actual: {{ ($user['is_free'] ?? false) ? '🔒 Cuenta Free (Restringida)' : '✓ Cuenta Premium (Todo Desbloqueado)' }}
+            </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-4 text-xs">
+            <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                <span class="font-extrabold text-emerald-800 block">✓ Dashboard</span>
+                <span class="text-[11px] text-emerald-700 mt-0.5 block">Incluido en Free y Premium</span>
+            </div>
+            <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                <span class="font-extrabold text-emerald-800 block">✓ Inventario y Bodega</span>
+                <span class="text-[11px] text-emerald-700 mt-0.5 block">Incluido en Free y Premium</span>
+            </div>
+            <div class="p-3.5 rounded-xl {{ ($user['is_free'] ?? false) ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200' }}">
+                <span class="font-extrabold {{ ($user['is_free'] ?? false) ? 'text-red-800' : 'text-blue-800' }} block">
+                    {{ ($user['is_free'] ?? false) ? '🔒 Rastreo GPS (Bloqueado)' : '✓ Rastreo GPS Activo' }}
+                </span>
+                <span class="text-[11px] {{ ($user['is_free'] ?? false) ? 'text-red-600' : 'text-blue-700' }} mt-0.5 block">Exclusivo Cuenta Premium</span>
+            </div>
+            <div class="p-3.5 rounded-xl {{ ($user['is_free'] ?? false) ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200' }}">
+                <span class="font-extrabold {{ ($user['is_free'] ?? false) ? 'text-red-800' : 'text-blue-800' }} block">
+                    {{ ($user['is_free'] ?? false) ? '🔒 Rutas y Envíos (Bloqueado)' : '✓ Rutas y Envíos Activo' }}
+                </span>
+                <span class="text-[11px] {{ ($user['is_free'] ?? false) ? 'text-red-600' : 'text-blue-700' }} mt-0.5 block">Exclusivo Cuenta Premium</span>
+            </div>
+            <div class="p-3.5 rounded-xl {{ ($user['is_free'] ?? false) ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200' }}">
+                <span class="font-extrabold {{ ($user['is_free'] ?? false) ? 'text-red-800' : 'text-blue-800' }} block">
+                    {{ ($user['is_free'] ?? false) ? '🔒 Personal (Bloqueado)' : '✓ Personal Desbloqueado' }}
+                </span>
+                <span class="text-[11px] {{ ($user['is_free'] ?? false) ? 'text-red-600' : 'text-blue-700' }} mt-0.5 block">Exclusivo Cuenta Premium</span>
+            </div>
         </div>
     </div>
 
@@ -201,31 +243,47 @@
             <div class="pb-4 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h3 class="text-base font-bold text-slate-800">Método de Pago y Facturación</h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Para el cobro mensual de \$60.00 USD tras la prueba</p>
+                    <p class="text-xs text-slate-400 mt-0.5">Para el cobro mensual de $60.00 USD tras la prueba</p>
                 </div>
                 <span class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs">
                     {{ $user['payment_method_brand'] }} •••• {{ $user['payment_method_last4'] }}
                 </span>
             </div>
 
+            @if ($errors->any())
+                <div class="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
+                    <ul class="list-disc list-inside space-y-0.5">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('suscripcion.update') }}" class="mt-5 space-y-4">
                 @csrf
                 <input type="hidden" name="action" value="update_billing">
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Razón Social / Empresa</label>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Razón Social / Empresa *</label>
                     <input type="text"
                            name="company_name"
-                           value="{{ $user['company_name'] }}"
+                           value="{{ old('company_name', $user['company_name']) }}"
+                           minlength="3"
+                           maxlength="150"
                            required
                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Número RUC Fiscal (Nicaragua)</label>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Número RUC Fiscal (Nicaragua) *</label>
                     <input type="text"
                            name="billing_ruc"
-                           value="{{ $user['billing_ruc'] }}"
+                           value="{{ old('billing_ruc', $user['billing_ruc']) }}"
+                           minlength="8"
+                           maxlength="25"
+                           pattern="[A-Za-z0-9\-]+"
+                           title="Ingresa un RUC válido (letras, números y guiones)"
                            required
                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white">
                 </div>
@@ -242,11 +300,14 @@
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Últimos 4 Dígitos</label>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Últimos 4 Dígitos *</label>
                         <input type="text"
                                name="payment_method_last4"
+                               minlength="4"
                                maxlength="4"
-                               value="{{ $user['payment_method_last4'] }}"
+                               pattern="[0-9]{4}"
+                               title="Exactamente 4 dígitos numéricos"
+                               value="{{ old('payment_method_last4', $user['payment_method_last4']) }}"
                                required
                                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white">
                     </div>
@@ -291,7 +352,7 @@
                                     <div class="text-[11px] text-slate-400 mt-0.5">Medio: {{ $pago->metodo_pago }}</div>
                                 </td>
                                 <td class="py-4 px-4 font-extrabold text-slate-900 whitespace-nowrap">
-                                    \${{ number_format($pago->monto, 2) }} {{ $pago->moneda }}
+                                    ${{ number_format($pago->monto, 2) }} {{ $pago->moneda }}
                                 </td>
                                 <td class="py-4 px-6 whitespace-nowrap">
                                     @if(str_contains(strtolower($pago->estado), 'pagado'))
